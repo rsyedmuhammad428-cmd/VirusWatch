@@ -259,9 +259,18 @@ Verified means "actually executed in the build sandbox"; the sandbox had no PyPI
 | WHO data licence | **Unverified**; source seeded disabled, export flag unset |
 | pgvector column / `match_document_chunks()` | **Written, not executed** locally; CI covers it |
 | Supabase project, Gemini, Resend | Not connected: no credentials |
-| Phases 5-9 | Not started |
+| Dataset provenance/validation (`app/datasets/`), NIH Table-1 parser | **Tested** on the real supplied files (see `docs/DATA_EXPANSION_REPORT.md`); not yet wired to a loader that writes `observations` |
+| Email scheduling (`app/notifications/`: schedule, planner, dispatcher, Resend sender, Svix webhook) | **Tested** with fakes and, for the SQL/migration, on real PostgreSQL 16; never run against a live Resend account |
+| Phase 5 (RAG + Gemini), Phase 7 NIH/CDC live connectors, Phase 8-9 | Not started |
 
 ## Roadmap
 
-3 WHO FluNet (done) → 4 analysis engine + surveillance APIs (done, see Status) → 5 RAG + Gemini →
-6 Resend digests/alerts → 7 NIH + CDC sources → 8 frontend integration docs → 9 evaluation, exports, deployment.
+3 WHO FluNet (done) → 4 analysis engine + surveillance APIs (done) → data expansion + email
+scheduling (done, see `docs/DATA_EXPANSION_REPORT.md`) → 5 RAG + Gemini →
+6 Resend digests/alerts (scheduling/sending built; live account not connected) →
+7 NIH + CDC live connectors (parser built; live ingestion not wired) →
+8 frontend integration docs → 9 evaluation, exports, deployment.
+
+The master spec (`Prompt.txt`) defines **9 phases** in total: 1 skeleton, 2 schema/RLS/auth,
+3 WHO FluNet ingestion, 4 analysis + surveillance API, 5 RAG + Gemini, 6 Resend
+notifications, 7 NIH + CDC connectors, 8 frontend integration docs, 9 evaluation/exports/deployment.

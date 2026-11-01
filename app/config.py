@@ -34,6 +34,9 @@ class Settings(BaseSettings):
     resend_api_key: SecretStr = SecretStr("")
     email_from: str = ""
     resend_webhook_secret: SecretStr = SecretStr("")
+    # Immediate alerts need a human-approved analysis result unless this is explicitly set.
+    alert_accept_unreviewed: bool = False
+    notification_batch_size: int = Field(100, ge=1, le=1000)
 
     # Ingestion. Identify yourself to data publishers: put a contact URL/email in the user agent.
     ingestion_user_agent: str = "VirusWatch-Ingestion/0.1"

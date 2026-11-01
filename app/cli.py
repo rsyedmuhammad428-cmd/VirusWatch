@@ -27,6 +27,7 @@ from app.ingestion.errors import IngestionError
 from app.ingestion.models import IngestRequest, RunStatus, RunSummary
 
 EXIT_OK, EXIT_FAILED, EXIT_PARTIAL, EXIT_ACTIVE = 0, 1, 2, 3
+EXIT_USAGE = 64
 DEFAULT_LOOKBACK_YEARS = 1  # incremental runs: current ISO year and the one before
 
 
@@ -48,6 +49,8 @@ def build_parser() -> argparse.ArgumentParser:
     )
     ingest.add_argument("--raw-dir", type=Path, help="Archive the downloaded file here")
     ingest.add_argument("--json", action="store_true", help="Machine-readable summary")
+
+    sub.add_parser("notify", help="Run one email cycle: queue due digests/alerts, send, record")
 
     analyze = sub.add_parser("analyze", help="Run the statistical analysis over stored series")
     analyze.add_argument(
@@ -212,6 +215,46 @@ async def _analyze(args: argparse.Namespace) -> int:
     return EXIT_OK
 
 
+async def _notify() -> int:
+    from datetime import UTC, datetime
+
+    from app.config import get_settings
+    from app.core.logging_config import configure_logging
+    from app.db import Database
+    from app.notifications.dispatcher import DispatchConfig, run_cycle
+    from app.notifications.planner import DEFAULT_ACCEPTED_REVIEWS
+    from app.notifications.sender import HttpxPoster, ResendSender
+    from app.notifications.sql_repository import SqlNotificationRepository
+
+    settings = get_settings()
+    configure_logging(settings.log_level, json_logs=settings.environment != "development")
+    api_key = settings.resend_api_key.get_secret_value()
+    if not api_key or not settings.email_from:
+        print("RESEND_API_KEY and EMAIL_FROM must be set.", file=sys.stderr)
+        return EXIT_USAGE
+    reviews = (
+        DEFAULT_ACCEPTED_REVIEWS | {"auto"}
+        if settings.alert_accept_unreviewed
+        else DEFAULT_ACCEPTED_REVIEWS
+    )
+    db = Database(_require_db_url(settings), pool_size=2)
+    try:
+        summary = await run_cycle(
+            SqlNotificationRepository(db),
+            ResendSender(api_key, settings.email_from, HttpxPoster()),
+            now=datetime.now(UTC),
+            config=DispatchConfig(
+                batch_size=settings.notification_batch_size,
+                accepted_reviews=frozenset(reviews),
+                frontend_base_url=settings.frontend_base_url,
+            ),
+        )
+    finally:
+        await db.dispose()
+    print(json.dumps(asdict(summary), indent=2))
+    return EXIT_OK
+
+
 async def _sources() -> int:
     from sqlalchemy import text
 
@@ -247,6 +290,8 @@ def main(argv: Sequence[str] | None = None) -> int:
             return asyncio.run(_ingest(args))
         if args.command == "analyze":
             return asyncio.run(_analyze(args))
+        if args.command == "notify":
+            return asyncio.run(_notify())
         return asyncio.run(_sources())
     except (IngestionError, AnalysisPersistenceError) as exc:
         print(f"error: {exc}", file=sys.stderr)

@@ -1,0 +1,13 @@
+X,Y,osm_id,osm_type,completeness,is_in_health_zone,amenity,speciality,addr_full,operator,water_source,changeset_id,insurance,staff_doctors,contact_number,uuid,electricity,opening_hours,operational_status,source,is_in_health_area,health_amenity_type,changeset_version,emergency,changeset_timestamp,name,staff_nurses,changeset_user,wheelchair,beds,url,dispensing,healthcare,operator_type
+,,230209332,way,6,,hospital,,,,,54266729,,,,d19bb7832924499ba1578eac7698a36b,,,,,,,2,,2017/12/02 11:28:51,,,SAFB13,,,,,,
+67.0648464304464,24.8981275892251,5147825920,node,10,,hospital,,,,,52627676,,,,6bda8201b4974f67a72787dbb3dd4266,,,,,,,1,,2017/10/04 14:51:07,Karim Bux Nursing Hostal,,Arshan Arshan,,,,,,
+74.3270584329448,31.5427406816933,4387287290,node,10,,doctors,,,,,41957092,,,,c28acb47650843b5a9b274f9d4b5930d,,,,,,,1,,2016/09/06 14:47:36,Chohan Clinic,,AliChughtai,,,,,,
+67.0560076297309,24.864496962941,5133026894,node,10,,clinic,,,,,54933035,,,,07c62fa54da04d998fd009cb5450e26a,,,,,,,2,,2017/12/26 15:53:12,Moosani Dental Surgery,,Splasher,,,,,,
+67.0756863267256,24.9347093997975,5146930683,node,10,,clinic,,,,,52618311,,,,4571d239f0e746f1bf21fa7aeb5223d4,,,,,,,1,,2017/10/04 08:43:24,Aga Khan Dispensary Salimabad,,Syed Zeeshan Ahmed90,,,,,,
+67.1018527844145,24.922907344853,4793731858,node,10,,hospital,,,,,47786497,,,,de6d599900604c53a49c4f2dd9d0373e,,,,,,,1,,2017/04/14 16:44:16,Dr Azhra Hospital,,Imran999,,,,,,
+73.1519128419901,32.3735583608323,5507599315,node,13,,hospital,,,,,60478955,,,,eb596426f5d5407ca177a8c013649c56,,,,,,,2,,2018/07/06 22:47:09,Hospital,,سامبا,,,,,hospital,
+72.4600680394772,34.5060866924655,6536727726,node,17,,doctors,orthopaedics,,,,71095724,,,,c1f659e89bc3416fb9d62b5e5f2f5547,,,,,,,1,,2019/06/10 10:02:56,Dr Dil Raj,,Azam Hussain,,,,,doctor,
+74.1475264488713,32.3070131742523,2961536114,node,24,,hospital,general,,Dr. Amin,,72958899,,,,d50849305f8940a9b02f2ac8abc071b3,,,,,,,4,yes,2019/08/02 23:17:42,Fatima Hospital,,dcguj,,,,,hospital,
+71.6726531960752,29.4072836292722,4923820119,node,10,,clinic,,,,,49659846,,,,9e4fe9f4d703426b954f1242bb8ea95b,,,,,,,1,,2017/06/19 08:11:17,Sadia Tariq Clinic,,Imran999,,,,,,
+67.0641948212937,24.8899421578619,4779033041,node,10,,clinic,,,,,51032701,,,,39c3a9ef689340bcacf79dfe0c025e1c,,,,,,,2,,2017/08/11 12:38:43,Kara Medical Clinic,,Imran999,,,,,,
+67.0880997576874,24.8748403990952,4788607083,node,10,,pharmacy,,,,,52817368,,,,de01a5012ed6432793d7be8199068342,,,,,,,2,,2017/10/11 09:25:19,Pak Medico Store,,Splasher,,,,,,
