@@ -1,0 +1,1261 @@
+# VirusWatch — Project README & Development Handover
+
+**Project:** VirusWatch  
+**Platform:** AI-assisted infectious-disease surveillance, trend analysis, and research support  
+**Primary geographic focus:** Pakistan, especially Sindh and Karachi where source data supports that level of detail  
+**International scope:** Selected international surveillance comparisons where data is genuinely comparable.
+
+**Purpose of this document:** Preserve the project vision, technical architecture, frontend and backend requirements, research direction, data inventory, development progress, and outstanding tasks so development can continue in another cloud-agent account without losing important context.
+
+---
+
+# 1. Project Overview
+
+## 1.1 What is VirusWatch?
+
+VirusWatch is an AI-assisted infectious-disease surveillance and trend-analysis platform designed to bring together official disease surveillance data, public-health reports, and scientific research.
+
+The platform will help users explore disease patterns, monitor changes over time, examine geographic distributions, identify unusual trends, and access research evidence through an AI Research Assistant.
+
+The initial focus is Pakistan, particularly Sindh and Karachi where reliable district-level data is available. Selected international sources will provide additional context and comparison.
+
+VirusWatch is intended to support public-health research and surveillance. It is not a diagnostic tool and must not replace public-health authorities.
+
+## 1.2 Main Project Objectives
+
+The main objectives are:
+
+1. Collect infectious-disease surveillance data from official and trusted sources.
+2. Integrate Pakistan's public-health surveillance reports.
+3. Integrate selected international surveillance datasets.
+4. Monitor disease trends over time.
+5. Analyze geographic patterns at the resolution supported by the data.
+6. Identify possible anomalies and unusual changes.
+7. Provide an AI-powered research assistant using scientific literature and approved data.
+8. Generate research summaries and surveillance reports.
+9. Provide notifications about source updates and possible surveillance signals.
+10. Maintain transparent data provenance, source attribution, and reporting limitations.
+
+## 1.3 Important Principles
+
+VirusWatch must follow these principles:
+
+- Never fabricate disease statistics or surveillance observations.
+- Never present synthetic testing data as real surveillance data.
+- Preserve missing, suppressed, not-reported, and zero values as different states.
+- Display the source, reporting period, unit, and data freshness.
+- Do not combine incompatible surveillance indicators.
+- Do not infer district-level data from provincial totals.
+- Treat anomaly detection as an early-warning screening mechanism, not confirmation of an outbreak.
+- Preserve historical corrections and data revisions.
+- Keep private API keys and credentials on the backend.
+- Make all important results traceable to their original data or research source.
+
+---
+
+# 2. Project Development Structure
+
+VirusWatch has two main development environments.
+
+## 2.1 Lovable — Frontend Development
+
+Lovable is responsible for building the user-facing application.
+
+**Frontend technology:**
+- React
+- TypeScript
+- Tailwind CSS
+- Recharts or an equivalent charting library
+- Supabase Auth if configured
+
+Lovable handles:
+- Dashboard design
+- Navigation and pages
+- Charts and visualizations
+- Tables and filters
+- Geographic visualization
+- AI assistant interface
+- Reports and research interface
+- Notifications
+- User settings
+- Administration interface
+- API integration with the backend
+
+Lovable should not invent surveillance statistics, perform independent official disease calculations, or expose private API credentials.
+
+## 2.2 Cloud Agent — Backend Development
+
+The cloud agent is responsible for the backend, data processing, APIs, database, and AI functionality.
+
+**Backend technology:**
+
+| Component | Technology |
+|---|---|
+| Backend framework | Python, FastAPI |
+| Validation | Pydantic |
+| HTTP requests | HTTPX |
+| Data processing | Pandas |
+| Database access | SQLAlchemy |
+| Database | Supabase PostgreSQL |
+| Authentication | Supabase Auth |
+| Database security | PostgreSQL RLS |
+| File storage | Supabase Storage |
+| Vector support | pgvector |
+| Research retrieval | LangChain |
+| AI workflows | LangGraph |
+| Language model | Gemini |
+| Email | Resend |
+| Testing | Pytest |
+| Code quality | Ruff |
+
+The backend is the source of truth for surveillance data and analysis.
+
+**Important:** Do not add unnecessary infrastructure such as MongoDB, Redis, Celery, separate vector databases, or additional AI agents unless a clear technical requirement justifies it.
+
+---
+
+# 3. Frontend Requirements — Lovable
+
+## 3.1 Main Navigation
+
+The original VirusWatch frontend design contains ten main sections:
+
+1. Overview
+2. Surveillance
+3. Disease Explorer
+4. Geographic Explorer
+5. AI Research Assistant
+6. Reports and Research
+7. Notifications
+8. Data Sources
+9. Settings
+10. Administration — authorized administrators only.
+
+Trend and Anomaly Analysis is a feature area within Surveillance, not an additional main navigation section.
+
+## 3.2 Overview
+
+The overview page should provide a summary of the surveillance system.
+
+Expected features:
+- Important surveillance indicators.
+- Latest available reporting information.
+- Data freshness and source status.
+- Recent trends.
+- Possible anomalies.
+- Important notifications.
+- Source coverage and data-quality warnings.
+
+Only display actual backend data. Never use fabricated numbers as live statistics.
+
+## 3.3 Surveillance
+
+This section provides access to surveillance observations.
+
+Expected features:
+- Disease filters.
+- Geographic filters.
+- Date and reporting-period filters.
+- Source filters.
+- Sampling-stream filters where supported.
+- Observation tables.
+- Trend charts.
+- Source attribution.
+- Reporting-period information.
+- Units and missing-data indicators.
+
+## 3.4 Disease Explorer
+
+This section provides disease-specific analysis.
+
+Expected features:
+- Disease overview.
+- Available indicators.
+- Historical trends.
+- Positivity trends where available.
+- Disease-specific surveillance information.
+- Relevant source information.
+- Related research documents.
+
+Different disease indicators must remain separate when their definitions differ.
+
+For example, influenza laboratory positivity is not the same as total clinical influenza cases.
+
+## 3.5 Geographic Explorer
+
+This section should show disease information geographically.
+
+Expected features:
+- Pakistan-level information.
+- Provincial-level information.
+- District-level information where supported.
+- Maps and geographic filters.
+- Geographic comparisons where indicators are comparable.
+
+Do not generate district-level values from provincial totals.
+
+A map should only be displayed when appropriate geographic data is available.
+
+## 3.6 AI Research Assistant
+
+This section will provide a research-oriented conversational interface.
+
+Expected features:
+- Ask questions about infectious diseases.
+- Retrieve relevant scientific papers.
+- Summarize research findings.
+- Explain surveillance trends.
+- Compare evidence from research documents.
+- Provide references and citations.
+- Clearly identify limitations and uncertainty.
+
+AI answers must be grounded in retrieved sources. The assistant must say when the available evidence is insufficient.
+
+Gemini must be called through the backend, never directly from frontend code.
+
+## 3.7 Reports and Research
+
+Expected features:
+- Research paper library.
+- Surveillance reports.
+- Generated summaries.
+- Research findings.
+- Document metadata.
+- Source references.
+- Report export where permitted.
+
+## 3.8 Notifications
+
+Expected features:
+- Source update notifications.
+- Data synchronization failures.
+- Possible anomaly notifications.
+- Configurable notification preferences.
+- Relevant source and reporting-period information.
+
+A possible anomaly must never be presented as a confirmed outbreak.
+
+## 3.9 Data Sources
+
+This section should provide a transparent overview of connected sources.
+
+Display:
+- Source name.
+- Source type.
+- Geographic coverage.
+- Latest reporting period.
+- Last checked time.
+- Last successful synchronization.
+- Source status.
+- Data freshness.
+- Recent ingestion errors where available.
+
+Distinguish between:
+- Downloaded
+- Registered
+- Parsed
+- Ingested
+- Automatically synchronized
+
+These are different stages.
+
+## 3.10 Settings and Administration
+
+Settings should contain user preferences and notification settings where implemented.
+
+Administration should only be accessible to authorized administrators.
+
+Administrative features may include:
+- Source management.
+- Ingestion run monitoring.
+- Data-source configuration.
+- User/role administration where supported.
+
+All administrative permissions must be enforced by the backend, not merely hidden in the frontend.
+
+---
+
+# 4. Copy-Paste Master Prompt for Lovable
+
+Use this prompt when starting or continuing the VirusWatch frontend in Lovable.
+
+**Prompt:**
+
+Build the frontend for **VirusWatch**, an AI-assisted infectious-disease surveillance, trend-analysis, and research-support platform focused first on Pakistan, particularly Sindh and Karachi where the underlying data supports that geographic detail.
+
+Use React, TypeScript, Tailwind CSS, and Recharts or an equivalent charting library.
+
+The backend is a separate FastAPI service and is the source of truth for surveillance observations, analysis, and AI research responses.
+
+### Main Navigation
+
+Create these ten main navigation sections:
+
+1. Overview
+2. Surveillance
+3. Disease Explorer
+4. Geographic Explorer
+5. AI Research Assistant
+6. Reports and Research
+7. Notifications
+8. Data Sources
+9. Settings
+10. Administration — authorized administrators only.
+
+Trend and Anomaly Analysis belongs within the Surveillance section.
+
+### Frontend Requirements
+
+- Build a professional, modern, responsive public-health surveillance dashboard.
+- Connect to the actual FastAPI endpoints and documented response schemas.
+- Do not invent API endpoints.
+- Do not fabricate statistics, charts, disease observations, AI answers, or source statuses.
+- If backend functionality is unavailable, show an appropriate unavailable or pending-integration state.
+- Display source attribution, reporting period, units, freshness, and limitations.
+- Preserve missing, suppressed, not-reported, and zero values as distinct states.
+- Do not represent laboratory positivity as total disease cases.
+- Do not combine incompatible surveillance indicators or sampling streams.
+- Do not infer district-level data from provincial totals.
+- Display anomaly results as possible signals requiring review, not confirmed outbreaks.
+- Create readable charts with axes, legends, tooltips, and reporting-period labels.
+- Create useful filters, tables, and detail views.
+- Include loading, empty, error, stale-data, and partial-data states.
+- Use maps only when valid geographic data is supplied.
+- The AI Research Assistant must display backend-generated answers and citations.
+- Do not call Gemini directly from the browser.
+- Do not expose Supabase service-role keys, Gemini keys, Resend keys, or other secrets.
+- Email sending must happen through the backend.
+- Restrict administrative controls to authorized users.
+
+First inspect the existing Lovable project and preserve working components and styling.
+
+Then map each page to the backend endpoints that actually exist.
+
+At the end, report:
+1. Which pages are connected to real backend data.
+2. Which pages are still frontend-only.
+3. Which backend endpoints are missing.
+4. Which features are awaiting backend integration.
+
+Do not claim that an integration is complete until it has been tested against the actual backend.
+
+---
+
+# 5. Backend Development Roadmap
+
+The original development roadmap contains six phases. A seventh phase was proposed later after the data-source audit.
+
+## Phase 1 — Backend Foundation
+
+Scope:
+- Backend project structure.
+- FastAPI application.
+- Configuration.
+- Core infrastructure.
+- Testing foundation.
+- CI configuration.
+
+**Reported progress:**
+
+Phase 1 files are included in the Phase 3 archive according to the previous cloud-agent report.
+
+However, the complete Phase 1 FastAPI test suite was not successfully run in the reported environment because required dependencies were unavailable.
+
+Status: Implemented files reported; full runtime verification outstanding.
+
+## Phase 2 — Database and Security
+
+Scope:
+- PostgreSQL database structure.
+- Supabase integration.
+- Database migrations.
+- Authentication.
+- Row-level security.
+- Data-source and observation tables.
+- Secure access controls.
+
+**Reported progress:**
+
+The Phase 3 archive included schema checks through migration 0008.
+
+The Phase 4 report also described SQL tests against PostgreSQL 16, including RLS checks.
+
+Status: Database work reported; verify the current repository, migrations, and policies before modifying anything.
+
+## Phase 3 — WHO FluNet Integration
+
+Scope:
+- Retrieve WHO FluNet data.
+- Parse and validate records.
+- Normalize data.
+- Store observations.
+- Prevent duplicates.
+- Preserve corrections and revisions.
+- Record ingestion runs.
+- Support dry-run ingestion.
+
+**Reported implementation:**
+
+The cloud agent reported the following CLI command:
+
+`python -m app.cli ingest --source who_flunet --dry-run`
+
+Reported functionality:
+- Downloads and parses FluNet data.
+- Validates records.
+- Preserves missing values instead of converting them to zero.
+- Calculates positivity only when the necessary real counts are available.
+- Handles corrections through observation revision history.
+- Supports idempotent ingestion.
+- Tracks rejected rows.
+- Fails a run when rejection rates exceed 20%.
+- Keeps country and sampling-stream series separate.
+- Prevents multiple simultaneous live runs for the same source.
+- Supports abandoned-run cleanup.
+
+**Reported tests:**
+- 246 tests passed in the previous agent's environment.
+- 216 unit tests and 30 SQL tests against PostgreSQL 16.
+- Schema checks through migration 0008 passed.
+
+**Outstanding limitations:**
+- A real WHO download was not verified because the agent's sandbox could not reach who.int.
+- Synthetic fixtures were used.
+- Repository, Database, and HTTPX fetcher paths were not run because dependencies could not be installed.
+- Phase 1 FastAPI tests were not run.
+- Local pgvector testing was not verified.
+- WHO licensing and redistribution terms remain unverified.
+- Supabase Storage raw-file archiving was not confirmed; local raw-directory archiving was optional through `--raw-dir`.
+
+Status: Implementation and synthetic testing reported; live integration remains unverified.
+
+## Phase 4 — Analysis and Surveillance
+
+Scope:
+- Surveillance API endpoints.
+- Trend analysis.
+- Rolling averages.
+- Baselines.
+- Seasonal comparisons.
+- Anomaly screening.
+- Source freshness.
+- Geographic resolution.
+- Comparable-rate analysis.
+
+**Reported implementation:**
+
+The analysis engine reportedly performs six checks per weekly series:
+
+1. Freshness.
+2. Rolling average.
+3. Trend.
+4. Trailing baseline.
+5. Seasonal comparison.
+6. Anomaly screening.
+
+Important analysis rules:
+- Analysis uses positivity rather than raw counts.
+- Blank weeks are skipped.
+- Small samples cannot generate alerts.
+- Stale data cannot generate alerts.
+- A possible anomaly requires a high z-score and at least a 2-percentage-point rise.
+- Results are labelled `possible_anomaly`, not outbreaks.
+- Results preserve inputs, parameters, baseline, method version, and input hash.
+- Unchanged reruns do not create duplicate analysis results.
+
+Migration 0009 reportedly makes analysis stream-aware.
+
+**Reported endpoints:**
+
+- `/surveillance/geographies`
+- `/surveillance/observations`
+- `/surveillance/latest`
+- `/surveillance/trends`
+- `/surveillance/alerts`
+- `/surveillance/comparisons`
+- `/sources`
+- `/sources/status`
+- `/sources/{id}/runs` — administrator access only.
+
+Other reported behaviour:
+- Geographic resolution is explicitly stated.
+- National data remains labelled national.
+- Staleness is calculated live.
+- Stale-flagged results are withheld.
+- Comparisons are restricted to rates and one sampling stream.
+- Cross-country rankings or differences are not generated.
+
+**Reported documentation:**
+- `methodology_analysis.md`
+- `api_surveillance.md`
+- Synthetic sample API responses.
+
+**Reported tests:**
+- 463 tests passed.
+- 66 SQL tests against PostgreSQL 16.
+- Migration 0009 checks passed.
+- Ruff checks and formatting passed.
+- The agent reported testing the analysis engine against 15 breakages and response rules against 14 cases.
+
+**Outstanding limitations:**
+- HTTP routers were not run because FastAPI was unavailable.
+- Repository and HTTPX fetcher paths were not run.
+- No real surveillance data was used for performance validation.
+- Precision, recall, and false-alarm rates are unknown.
+- Analysis thresholds are conventional and not yet calibrated against labelled historical data.
+- WHO licensing remains unverified.
+
+Status: Analysis engine and SQL-side safeguards reported; live API and real-data validation outstanding.
+
+## Phase 5 — AI Research Assistant
+
+Planned scope:
+- Research-document ingestion.
+- PDF text extraction.
+- Document metadata.
+- Retrieval-augmented generation (RAG).
+- LangChain retrieval components.
+- LangGraph workflows.
+- Gemini integration.
+- Citation generation.
+- Evidence-grounded answers.
+
+The assistant should answer questions using relevant research documents and approved surveillance data.
+
+It must:
+- Cite relevant documents.
+- Preserve source context.
+- Explain uncertainty.
+- Avoid invented references.
+- Say when evidence is insufficient.
+- Avoid unsupported medical conclusions.
+
+Status: Planned. The Phase 3 and Phase 4 reports explicitly stated that LangChain and LangGraph had not yet been implemented.
+
+## Phase 6 — Email Notifications
+
+Planned scope:
+- Resend integration.
+- Backend email delivery.
+- Notification preferences.
+- Possible-anomaly notifications.
+- Source update notifications.
+- Failure notifications.
+
+Email credentials must remain on the backend.
+
+Status: Planned; implementation not established by the available reports.
+
+## Phase 7 — Multi-Source Data Integration
+
+This phase was proposed after the data-source audit.
+
+Its purpose is to expand VirusWatch beyond WHO FluNet.
+
+Candidate sources:
+1. NIH Pakistan weekly public-health bulletins.
+2. CDC FluView.
+3. CDC National Wastewater Surveillance System.
+4. CDC measles wastewater data.
+
+Additional Pakistan datasets may be integrated selectively as contextual or historical information.
+
+Status: Proposed expansion. Collected files do not mean the connectors or ingestion pipelines have been implemented.
+
+---
+
+# 6. Data Sources and Current Inventory
+
+## 6.1 WHO FluNet
+
+Files supplied:
+- `VIW_FNT.csv`
+- `VIW_FLU_METADATA.csv`
+
+Multiple copies of these files were supplied.
+
+Reported audit findings:
+- 190,020 source rows.
+- Zero rejected rows in the reported audit.
+- 952 Pakistan source rows.
+- 7,426 transformed Pakistan observations.
+- 53 out of 53 header fields matched the metadata dictionary.
+- 261 usable Pakistan sentinel positivity weeks.
+- Reported coverage from 2019-12-30 to 2026-10-18.
+- 2020 coverage is sparse.
+- Approximately 4–5 useful years for seasonal baselines.
+
+**Scientific interpretation:**
+
+FluNet provides laboratory virological surveillance, including specimens tested, specimens positive, influenza types, and subtypes.
+
+It does not represent every clinical influenza case in the population.
+
+Suitable uses:
+- Influenza positivity trends.
+- Influenza subtype patterns.
+- Laboratory surveillance trends.
+- Seasonal analysis.
+- Anomaly screening.
+- Comparisons where sampling methods and streams are compatible.
+
+**Outstanding:** Verify WHO terms for storage, display, attribution, redistribution, and export. Public availability does not automatically grant every reuse permission.
+
+## 6.2 NIH Pakistan Weekly Bulletins
+
+Official source:
+
+https://www.nih.org.pk/phb
+
+Collected material includes multiple 2026 weekly IDSR/Public Health Bulletin PDFs.
+
+The supplied inventory includes weeks:
+- 1–18
+- 20–30
+- 32–41
+
+Additional reports and duplicate copies were also supplied.
+
+A previous audit of a three-part ZIP compilation containing 813 pages reported:
+- 39 of 41 weeks available in that compilation.
+- Weeks 19 and 31 absent.
+- Week 26 and Week 41 duplicate copies agreed.
+- Table 1 extraction for Week 26: 27 diseases × 7 provinces.
+- Punjab `NR` treated as missing.
+- Provincial totals checked against sums.
+
+Important limitations:
+- Values may represent suspected cases, not confirmed cases.
+- Population denominators are not supplied.
+- Some Karachi district-level information exists.
+- The district table does not include dengue/measles columns; those are reported at Sindh province level.
+- PDF tables contain wrapped text and inconsistent district naming.
+- Source URL, publication date, and licence information are not consistently present inside the PDFs.
+
+The parser must preserve the original table and page context, missing values, disease definitions, and reporting periods.
+
+## 6.3 CDC FluView
+
+Collected files:
+- `FluViewPhase2Data.zip`
+- `FluViewPhase2Data (1).zip`
+
+Important distinction:
+
+CDC FluView contains different surveillance indicators.
+
+- ILINet %ILI represents the percentage of outpatient visits associated with influenza-like illness.
+- NREVSS %positive represents laboratory influenza positivity.
+
+These are not interchangeable and must not be combined into one indicator or labelled as total influenza cases.
+
+Status: Files collected; connector and ingestion not established by the available audit.
+
+## 6.4 CDC NWSS and Measles Wastewater
+
+Collected files:
+- `CDC_Wastewater_Data_for_Measles_20261029.csv`
+- `NWSSNationalSiteMap.csv`
+- `sites-participating-in-cdc’s-wastewater-monitoring-program-2026-10-29.png`
+
+Important limitations:
+- The NWSS site map is not a measles-specific dataset.
+- Measles wastewater records contain different units, including copies/L and copies/g dry sludge.
+- Multiple assay variants exist.
+- Duplicate sample IDs were noted.
+- Wastewater measurements cannot be directly compared with clinical case counts.
+
+The implementation must preserve unit, assay, sample matrix, site, and collection date.
+
+Status: Files collected; connector and ingestion not established.
+
+## 6.5 Supplementary Pakistan Datasets
+
+Collected files:
+
+- `pakistan (1).csv` — OpenData Pakistan.
+- `pakistan.csv` — OpenData Pakistan.
+- `hiv-treatment-centres-in-pakistan-2020.csv` — OpenData Pakistan.
+- `key-indicators-of-health-in-pakistan.csv` — OpenData Pakistan.
+- `covid-19-cases-in-pakistan-2020.csv` — OpenData Pakistan.
+- `national-dhs-quickstats.csv` — OpenData Pakistan.
+- `health_indicators_pak.csv` — HDX.
+
+Classification:
+
+| Dataset | Intended role |
+|---|---|
+| COVID-19 cases 2020 | Historical disease surveillance |
+| HIV treatment centres | Healthcare facility context |
+| Key health indicators | Health context |
+| DHS quick statistics | Population/demographic context |
+| HDX health indicators | Health context |
+| Generic Pakistan CSVs | Inspect contents before classification |
+
+Reported audit issues in the COVID-19 dataset:
+- Mixed date formats.
+- A `No 0` value.
+- Negative test values.
+- Decreasing cumulative values.
+
+These files need cleaning and validation before integration.
+
+Do not treat facility lists and general health indicators as active infectious-disease surveillance.
+
+## 6.6 Research Papers
+
+Currently listed as available:
+
+- `s12879-026-13993-1.pdf`
+- `journal.pone.0353487.pdf`
+- `s41598-024-83425-0.pdf`
+
+Marked deleted:
+- `12936_2025_Article_5505.pdf`
+- `ijerph-22-01104.pdf`
+
+Previously, five research papers were mentioned for RAG. The latest inventory lists three available and two deleted. Verify actual files before indexing.
+
+---
+
+# 7. Research Component and Scientific Direction
+
+VirusWatch should support both surveillance analysis and scientific literature review.
+
+Potential research questions include:
+
+- What seasonal patterns are visible in Pakistan's influenza laboratory surveillance?
+- How do influenza positivity and subtype patterns change over time?
+- What trends are visible in NIH weekly suspected-case bulletins?
+- Which diseases show unusual changes requiring further investigation?
+- How do Pakistan surveillance indicators compare with selected international indicators?
+- How do reporting delays, missing weeks, testing volume, and geographic coverage affect interpretation?
+
+These are research questions, not established findings.
+
+## 7.1 Research Assistant Workflow
+
+The planned workflow is:
+
+1. Register each research document.
+2. Extract text and tables.
+3. Preserve page numbers and section context.
+4. Clean headers and footers.
+5. Divide documents into meaningful chunks.
+6. Store document metadata with every chunk.
+7. Generate embeddings.
+8. Store embeddings in the configured database/vector extension where enabled.
+9. Retrieve relevant passages for a user question.
+10. Generate an answer through Gemini on the backend.
+11. Cite the relevant document and page/section where possible.
+12. Report when the available evidence does not answer the question.
+
+Each document should have metadata such as:
+- Title.
+- Authors.
+- Journal.
+- Publication year.
+- DOI or URL.
+- File checksum.
+- Licence/access status.
+- Processing status.
+
+## 7.2 Research Evaluation
+
+Before making strong claims, evaluate:
+
+- Parser accuracy.
+- Data completeness.
+- Data-source coverage.
+- Ingestion reliability.
+- Duplicate and correction handling.
+- Anomaly precision and recall.
+- False-alarm rate.
+- RAG retrieval relevance.
+- Citation correctness.
+- AI answer faithfulness.
+- Unsupported-claim frequency.
+
+Do not claim that VirusWatch predicts outbreaks or has validated anomaly-detection accuracy until appropriate evaluation has been conducted.
+
+---
+
+# 8. Automated Data Synchronization
+
+A manual ingestion command is not the same as automatic synchronization.
+
+## 8.1 Required Behaviour
+
+VirusWatch should periodically check official data sources according to their publication schedules.
+
+When a new or revised dataset is available, the system should:
+
+1. Check the official source.
+2. Detect a new or updated release.
+3. Download the dataset automatically.
+4. Record retrieval metadata.
+5. Preserve the original file where permitted.
+6. Parse and validate the data.
+7. Normalize it to the canonical database schema.
+8. Prevent duplicate records.
+9. Preserve corrected records and revision history.
+10. Commit valid updates safely.
+11. Log failed attempts and rejected records.
+12. Retain the last good dataset if a new retrieval or parsing attempt fails.
+13. Update source freshness information.
+14. Display the last successful synchronization time on the dashboard.
+
+A source check that finds no new release is a successful check, not a failed download.
+
+A weekly bulletin should only be expected after it has been published.
+
+## 8.2 Synchronization Status
+
+Keep these states separate:
+
+- Last checked.
+- Last successful download.
+- Last successful ingestion.
+- Latest reporting period.
+- Latest publication date, if known.
+- Current source status.
+- Number of records accepted/rejected.
+- Most recent error, if any.
+
+Scheduled polling does not make a weekly source live or real-time.
+
+**Important:** Do not claim automatic synchronization is implemented until an actual scheduler/job and end-to-end tests exist.
+
+---
+
+# 9. Security and Data Governance
+
+Security requirements:
+
+- Store secrets server-side.
+- Never expose Supabase service-role keys.
+- Never expose Gemini credentials.
+- Never expose Resend credentials.
+- Use environment variables or the established secret-management mechanism.
+- Enforce PostgreSQL RLS.
+- Enforce administrator permissions server-side.
+- Validate external data.
+- Keep audit trails for ingestion and revisions.
+- Preserve source attribution.
+
+Data governance requirements:
+
+- Review each source's licence and terms.
+- Distinguish internal research use from public display and redistribution.
+- Set public-export permissions only after reviewing the applicable terms.
+- Do not assume that publicly downloadable data is unrestricted.
+- Preserve the source's definitions and limitations.
+
+WHO FluNet licence/redistribution permissions were not verified in the available audit reports. Continue development with permitted test data, but do not assume unrestricted public redistribution.
+
+---
+
+# 10. Recommended Next Development Steps
+
+The next cloud-agent account should proceed in this order.
+
+## Step 1 — Inspect the Existing Repository
+
+Before coding:
+- Inspect repository files.
+- Inspect branches and commit history.
+- Inspect database migrations.
+- Inspect environment configuration.
+- Inspect tests and CI.
+- Inspect Phase 3 and Phase 4 archives.
+- Determine which work is already present.
+- Identify any differences between ZIP snapshots and the current repository.
+
+Do not restart completed work.
+
+## Step 2 — Verify Phases 1–4
+
+- Install dependencies.
+- Run the complete test suite.
+- Run FastAPI startup tests.
+- Run database migrations against PostgreSQL.
+- Test actual routers and repositories.
+- Test HTTPX source retrieval.
+- Verify RLS and admin permissions.
+- Verify documented API endpoints.
+- Test live WHO retrieval if access and permissions allow.
+
+Clearly report which tests use synthetic fixtures and which use real source data.
+
+## Step 3 — Resolve Data Permissions
+
+Review the applicable terms for:
+- WHO FluNet.
+- NIH Pakistan bulletins.
+- CDC FluView.
+- CDC NWSS.
+- OpenData Pakistan.
+- HDX.
+
+Document storage, display, redistribution, and export permissions separately.
+
+## Step 4 — Expand Data Integrations
+
+Recommended order:
+
+1. Verify WHO FluNet live ingestion.
+2. Implement NIH weekly bulletin parsing and ingestion.
+3. Implement CDC FluView while separating ILINet and NREVSS.
+4. Implement measles wastewater with unit and assay separation.
+5. Add NWSS site metadata in its correct role.
+6. Inspect and selectively integrate supplementary Pakistan datasets.
+
+## Step 5 — Implement Scheduled Synchronization
+
+Build:
+- Source-specific schedules.
+- New-release detection.
+- Run locking.
+- Retry/backoff.
+- Idempotent ingestion.
+- Revision preservation.
+- Failure logging.
+- Last-good-data retention.
+- API freshness metadata.
+- End-to-end tests.
+
+Select the scheduler based on the actual deployment environment.
+
+## Step 6 — Implement Phase 5
+
+Build the AI Research Assistant using:
+- LangChain.
+- LangGraph.
+- Gemini.
+- Document processing.
+- Retrieval.
+- Citations.
+- Evidence-grounding tests.
+
+## Step 7 — Implement Phase 6
+
+Integrate Resend for backend email notifications.
+
+Add:
+- User notification preferences.
+- Source update notifications.
+- Possible-anomaly notifications.
+- Failure notifications.
+- Duplicate prevention.
+
+## Step 8 — Implement Proposed Phase 7
+
+Expand the data-source integrations after source permissions, parsing, and validation have been established.
+
+## Step 9 — Integrate Lovable
+
+Provide Lovable with:
+- Actual backend API base URL.
+- API documentation.
+- Authentication requirements.
+- Response schemas.
+- Error response formats.
+- Data-source status definitions.
+
+Connect pages one at a time and verify actual backend responses.
+
+---
+
+# 11. Project Files and Archives
+
+The following files have been reported in the project inventory:
+
+- `viruswatch_phase3.zip`
+- `viruswatch_phase4.zip`
+- `viruswatch.zip`
+- `DATASET_AUDIT_REPORT.md`
+- `VirusWatch_Workflow_Data_Sources_and_Database_Plan.docx`
+- `VirusWatch_Project_Overview_for_Supervisor.docx`
+- `VirusWatch_Project_Overview_for_Supervisor (1).docx`
+
+The two supervisor overview DOCX files were described as duplicates.
+
+The ZIP archives are snapshots. Inspect their contents and repository history before deciding which version is authoritative.
+
+---
+
+# 12. Master Handover Prompt for a New Cloud-Agent Account
+
+Copy this entire prompt into the new cloud-agent account.
+
+**PROMPT START**
+
+You are continuing development of **VirusWatch**, an AI-assisted infectious-disease surveillance, trend-analysis, and research-support platform focused primarily on Pakistan, particularly Sindh and Karachi where source data supports that geographic detail.
+
+Your role is to work on the backend, database, APIs, ingestion pipelines, analysis engine, AI research assistant, tests, documentation, and deployment.
+
+The frontend is being developed separately in Lovable. Do not rebuild the frontend unless explicitly instructed.
+
+### Expected Technology
+
+- Python
+- FastAPI
+- Pydantic
+- HTTPX
+- Pandas
+- SQLAlchemy
+- Supabase PostgreSQL
+- Supabase Auth
+- Supabase Storage
+- PostgreSQL RLS
+- pgvector where configured
+- Pytest
+- Ruff
+- LangChain and LangGraph for Phase 5
+- Gemini for server-side AI
+- Resend for server-side email
+
+Keep the architecture simple. Do not introduce unnecessary infrastructure.
+
+### Existing Reported Progress
+
+**Phase 1:** Backend foundation files reportedly included in the Phase 3 archive. Full FastAPI test verification remains outstanding.
+
+**Phase 2:** Database/security work reported, with schema checks through migration 0008 and later SQL/RLS testing reported.
+
+**Phase 3:** WHO FluNet ingestion CLI, validation, idempotency, correction history, and dry-run support reported. The previous agent reported 246 passing tests. However, live WHO retrieval and several runtime paths were not verified.
+
+**Phase 4:** Analysis engine, stream-aware migration 0009, surveillance endpoints, freshness handling, and possible-anomaly screening reported. The previous agent reported 463 passing tests and clean Ruff checks. However, HTTP routers and several runtime paths were not verified against a running application.
+
+**Phase 5:** AI Research Assistant with LangChain, LangGraph, Gemini, RAG, and citations. Planned, not confirmed implemented.
+
+**Phase 6:** Resend email notifications. Planned, not confirmed implemented.
+
+**Phase 7:** Proposed multi-source integration for NIH Pakistan, CDC FluView, CDC NWSS, and measles wastewater.
+
+### First Task — Audit Before Coding
+
+Inspect the actual repository, branches, commits, migrations, tests, CI, environment templates, and documentation.
+
+Compare the current repository with the Phase 3 and Phase 4 archives if available.
+
+Produce a verified status table containing:
+
+- Phase or feature.
+- Repository evidence.
+- Test evidence.
+- Status: implemented, partial, not implemented, or unverified.
+- Next action.
+
+Do not assume previous reports prove end-to-end execution.
+
+Do not repeat completed work or overwrite existing migrations.
+
+### Important Data Sources
+
+- WHO FluNet: `VIW_FNT.csv` and `VIW_FLU_METADATA.csv`.
+- NIH Pakistan: weekly public-health/IDSR bulletins.
+- CDC FluView: `FluViewPhase2Data.zip`.
+- CDC NWSS and measles wastewater datasets.
+- OpenData Pakistan and HDX supplementary datasets.
+- Scientific research PDFs.
+
+### Critical Data Rules
+
+1. WHO FluNet is laboratory virological surveillance, not total clinical influenza cases.
+2. NIH bulletins may report suspected cases; preserve the source definition.
+3. Preserve `NR` and missing values as missing, not zero.
+4. CDC ILINet %ILI and NREVSS %positive are different indicators.
+5. Measles wastewater data has multiple units and assay variants. Never combine incompatible measurements.
+6. Wastewater measurements are not clinical case counts.
+7. Facility and general health-indicator datasets are contextual data, not active disease surveillance.
+8. Never infer district values from provincial totals.
+9. Never label a possible anomaly as a confirmed outbreak.
+10. Preserve source attribution, units, reporting periods, missingness, and historical revisions.
+
+### Automated Synchronization Target
+
+The platform should periodically check official sources according to their publication cadence.
+
+When a new or revised release is detected:
+- Download it.
+- Validate it.
+- Normalize it.
+- Prevent duplicates.
+- Preserve revisions.
+- Record ingestion results.
+- Log failures.
+- Retain the last good dataset.
+- Expose last-checked and last-successful-update information through the API.
+
+A manual CLI fetch is not scheduled synchronization.
+
+Do not claim automatic synchronization is complete unless a scheduler/job and end-to-end tests exist.
+
+### AI Research Assistant Target
+
+Implement:
+- Document ingestion.
+- PDF extraction.
+- Metadata preservation.
+- LangChain retrieval.
+- LangGraph workflows.
+- Gemini server-side generation.
+- Source and page citations.
+- Evidence-grounded responses.
+- Tests for retrieval relevance and citation correctness.
+
+The assistant must state when evidence is insufficient. It must not invent citations or medical conclusions.
+
+### Email Target
+
+Implement Resend on the backend only. Do not expose email credentials in the frontend.
+
+### Security
+
+Never expose Supabase service-role keys, Gemini keys, Resend keys, or other secrets in frontend code.
+
+Enforce authorization and RLS.
+
+### Working Method
+
+Preserve all completed work.
+
+Make changes incrementally.
+
+Run relevant tests after each implementation.
+
+Never fabricate test results.
+
+Clearly identify synthetic-fixture tests versus real-source tests.
+
+If dependencies, credentials, or external sources are unavailable, state exactly what cannot be verified and continue with safe work.
+
+Your first deliverable is the verified repository audit table. After that, recommend the smallest safe next implementation step.
+
+**PROMPT END**
+
+---
+
+# 13. Master Handover Prompt for the Lovable Account
+
+Copy this into the Lovable project when continuing frontend development.
+
+**PROMPT START**
+
+Continue the existing **VirusWatch frontend**.
+
+First inspect the current project and preserve working code, components, routes, and design. Do not rebuild the application from scratch.
+
+VirusWatch is an AI-assisted infectious-disease surveillance, trend-analysis, and research-support platform focused primarily on Pakistan, especially Sindh and Karachi where source data supports that detail.
+
+### Technology
+
+- React
+- TypeScript
+- Tailwind CSS
+- Recharts or an equivalent chart library
+- Supabase Auth if configured
+
+The backend is a separate FastAPI application and is the source of truth.
+
+### Main Navigation
+
+1. Overview
+2. Surveillance
+3. Disease Explorer
+4. Geographic Explorer
+5. AI Research Assistant
+6. Reports and Research
+7. Notifications
+8. Data Sources
+9. Settings
+10. Administration — authorized administrators only.
+
+Trend and Anomaly Analysis is part of Surveillance.
+
+### Integration Rules
+
+- Use actual documented FastAPI endpoints.
+- Do not invent API endpoints.
+- Do not fabricate surveillance data or statistics.
+- Do not use mock values as live data.
+- Display source attribution, reporting period, units, freshness, and limitations.
+- Preserve missing, suppressed, not-reported, and zero values.
+- Do not label FluNet positivity as total influenza cases.
+- Keep CDC ILINet and NREVSS indicators separate.
+- Keep incompatible wastewater units and assays separate.
+- Do not infer district values from provincial totals.
+- Display anomaly results as possible signals, not confirmed outbreaks.
+- Use maps only when valid geographic data is supplied.
+- Show proper loading, empty, error, stale-data, and partial-data states.
+- Use backend-generated AI answers and citations.
+- Do not call Gemini directly from the browser.
+- Never expose private API keys or privileged credentials.
+- Keep administration controls restricted by backend authorization.
+
+### First Action
+
+Inspect the existing frontend.
+
+List:
+1. Current pages and components.
+2. Existing API connections.
+3. Available backend endpoints.
+4. Pages that are currently UI-only.
+5. Missing backend integrations.
+
+Then implement the highest-priority missing integration without replacing working components or inventing data.
+
+At completion, report which pages use real backend data and which remain incomplete.
+
+**PROMPT END**
+
+---
+
+# 14. Outstanding Questions and Risks
+
+The following issues must remain visible in project planning:
+
+1. WHO FluNet storage, display, redistribution, and export permissions need verification.
+2. Live WHO retrieval needs to be tested in the actual deployment environment.
+3. NIH weekly PDF publication and revision detection needs a reliable strategy.
+4. CDC source schemas and publication schedules need verification.
+5. Data permissions must be documented separately for each source.
+6. Geographic coverage must be documented for each dataset.
+7. Anomaly thresholds need validation against suitable historical reference data.
+8. The actual available research PDFs must be checked before RAG indexing.
+9. The hosting environment must be confirmed before selecting the scheduler.
+10. The frontend needs the actual backend base URL, API documentation, authentication flow, and CORS configuration.
+
+---
+
+# 15. How to Maintain This README
+
+Update this document whenever an important development milestone is completed.
+
+Record:
+
+- Date.
+- Repository commit or release version.
+- Files changed.
+- Database migrations added.
+- API endpoints added or modified.
+- Tests actually executed.
+- Test environment.
+- Whether tests used synthetic or real data.
+- What remains unverified.
+- Source permission status.
+- Whether the feature is implemented, tested, deployed, and connected to Lovable.
+
+Keep these statuses separate:
+
+- **Implemented:** Code exists.
+- **Tested:** Relevant tests have actually passed.
+- **Verified:** Behaviour has been checked in the intended environment.
+- **Deployed:** Feature is running in the target environment.
+- **Integrated:** The frontend is successfully using the backend functionality.
+
+A phase should not be marked complete merely because code has been generated.
+
+**Final project principle:** Build VirusWatch as a reliable, transparent, evidence-based surveillance and research platform. Data quality, scientific interpretation, traceability, and responsible AI are more important than adding features quickly.
