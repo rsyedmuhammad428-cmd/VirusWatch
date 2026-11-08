@@ -14,7 +14,7 @@ from pathlib import Path
 
 import pytest
 
-PACKAGES = ["app.ingestion", "app.analysis", "app.notifications"]
+PACKAGES = ["app.ingestion", "app.analysis", "app.notifications", "app.rag"]
 # `:name` bind parameters; a preceding ':' (a ::cast) or word character excludes a match.
 _PARAM = re.compile(r"(?<![:\w]):([A-Za-z_]\w*)")
 

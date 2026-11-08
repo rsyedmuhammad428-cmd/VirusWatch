@@ -31,9 +31,22 @@ class Settings(BaseSettings):
     gemini_embedding_model: str = ""
     embedding_dimensions: int = 768
 
+    # AI workflow (Phase 5). The provider is unconfigured (AskService falls back to an
+    # insufficient-evidence answer, never a fabricated one) until gemini_api_key/gemini_model
+    # are set to values confirmed against the current Gemini API documentation.
+    ai_retrieval_match_count: int = Field(6, ge=1, le=50)
+    ai_max_output_tokens: int = Field(1024, ge=1, le=8192)
+    ai_request_timeout_seconds: float = Field(20.0, gt=0, le=120)
+    rag_chunk_target_chars: int = Field(1200, ge=100, le=8000)
+    rag_chunk_overlap_chars: int = Field(150, ge=0, le=2000)
+
     resend_api_key: SecretStr = SecretStr("")
     email_from: str = ""
     resend_webhook_secret: SecretStr = SecretStr("")
+    # Manually set only after confirming domain verification in the Resend dashboard yourself;
+    # nothing here calls Resend's API to check it. Gates live sending in "auto" mode together
+    # with environment == "production" (see app.notifications.sender.choose_sender).
+    resend_domain_verified: bool = False
     # Immediate alerts need a human-approved analysis result unless this is explicitly set.
     alert_accept_unreviewed: bool = False
     notification_batch_size: int = Field(100, ge=1, le=1000)

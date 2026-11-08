@@ -366,6 +366,89 @@ def test_alert_item_and_digest_items_return_cautious_fields(pg):
     assert pg.execute(sql.DIGEST_ITEMS, {"geography_id": None, "diseases": '["dengue"]'}) == []
 
 
+def test_get_preferences_returns_one_users_row_even_when_disabled(pg):
+    uid = user(pg)
+    prefs(pg, uid, enabled=False)
+    row = pg.execute(sql.GET_PREFERENCES, {"user_id": uid})[0]
+    assert row["enabled"] == "f"
+    assert row["local_time"] == "09:00"
+    assert row["timezone"] == "Asia/Karachi"
+    assert pg.execute(sql.GET_PREFERENCES, {"user_id": str(uuid.uuid4())}) == []
+
+
+def test_history_lists_a_users_rows_newest_first_and_respects_limit(pg):
+    uid = user(pg)
+    prefs(pg, uid)
+    enqueue(pg, uid, key="digest:u:weekly:2026-W44", when="2026-10-26T04:00:00+00:00")
+    enqueue(pg, uid, key="digest:u:weekly:2026-W45", when=NOW)
+    enqueue(pg, uid, key="alert:x", when=LATER, kind="alert")
+    rows = pg.execute(sql.HISTORY, {"user_id": uid, "limit": 2})
+    assert len(rows) == 2
+    assert [r["scheduled_for"] for r in rows] == sorted(
+        (r["scheduled_for"] for r in rows), reverse=True
+    )
+    assert rows[0]["notification_type"] == "alert"
+    assert "subject" in rows[0] and rows[0]["status"] == "pending"
+
+
+def test_insert_test_send_records_a_test_row_outside_the_dedup_guard(pg):
+    uid = user(pg)
+    prefs(pg, uid)
+    first = pg.execute(
+        sql.INSERT_TEST_SEND,
+        {
+            "user_id": uid,
+            "deduplication_key": f"test:{uid}:{NOW}",
+            "subject": "VirusWatch - test email",
+            "succeeded": True,
+            "provider_message_id": "msg-1",
+            "error_summary": None,
+            "now": NOW,
+        },
+    )[0]["id"]
+    # A second test send with the same timestamp-independent subject is never blocked by the
+    # digest/alert dedup guard, because its deduplication_key embeds the send timestamp.
+    second = pg.execute(
+        sql.INSERT_TEST_SEND,
+        {
+            "user_id": uid,
+            "deduplication_key": f"test:{uid}:{LATER}",
+            "subject": "VirusWatch - test email",
+            "succeeded": True,
+            "provider_message_id": "msg-2",
+            "error_summary": None,
+            "now": LATER,
+        },
+    )[0]["id"]
+    assert first != second
+    rows = {r["id"]: r for r in pg.execute(sql.HISTORY, {"user_id": uid, "limit": 10})}
+    assert rows[first]["status"] == "sent" and rows[first]["sent_at"] is not None
+    assert rows[second]["status"] == "sent"
+
+
+def test_insert_test_send_failure_leaves_no_sent_at(pg):
+    uid = user(pg)
+    prefs(pg, uid)
+    row_id = pg.execute(
+        sql.INSERT_TEST_SEND,
+        {
+            "user_id": uid,
+            "deduplication_key": f"test:{uid}:{NOW}",
+            "subject": "VirusWatch - test email",
+            "succeeded": False,
+            "provider_message_id": None,
+            "error_summary": "boom",
+            "now": NOW,
+        },
+    )[0]["id"]
+    row = {r["id"]: r for r in pg.execute(sql.HISTORY, {"user_id": uid, "limit": 10})}[row_id]
+    assert row["status"] == "failed"
+    # psql's CSV driver renders SQL NULL as an empty string, not Python None (see
+    # PsqlDatabase.execute's docstring: rows come back as dicts of strings).
+    assert row["sent_at"] == ""
+    assert row["error_summary"] == "boom"
+
+
 def test_clients_cannot_read_or_write_delivery_tables(pg):
     uid = user(pg)
     prefs(pg, uid)

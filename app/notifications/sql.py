@@ -258,3 +258,60 @@ update public.notification_preferences
  where unsubscribe_token = cast(:token as uuid)
 returning user_id::text as user_id
 """
+
+# One user's own settings row, with no `enabled` filter (unlike LIST_PREFERENCES, which is only
+# for the scheduler) so a user can see "notifications are off" rather than get an empty result.
+GET_PREFERENCES = """
+select user_id::text                          as user_id,
+       email                                  as email,
+       enabled                                as enabled,
+       digest_enabled                         as digest_enabled,
+       alerts_enabled                         as alerts_enabled,
+       digest_frequency                       as frequency,
+       timezone                               as timezone,
+       to_char(delivery_time, 'HH24:MI')      as local_time,
+       weekly_day                             as weekly_day,
+       monthly_day                            as monthly_day,
+       minimum_alert_severity                 as minimum_alert_severity,
+       consent_given_at                       as consent_given_at,
+       email_verified_at                      as email_verified_at,
+       last_digest_at                         as last_digest_at,
+       array_to_json(selected_diseases)::text as selected_diseases,
+       preferred_geography_id::text           as preferred_geography_id,
+       unsubscribe_token::text                as unsubscribe_token
+  from public.notification_preferences
+ where user_id = cast(:user_id as uuid)
+"""
+
+# Recent delivery history for one user, newest first. Never selects the email body (not stored).
+HISTORY = """
+select id::text                   as id,
+       notification_type         as notification_type,
+       subject                   as subject,
+       status                    as status,
+       attempt_count             as attempt_count,
+       scheduled_for             as scheduled_for,
+       sent_at                   as sent_at,
+       delivered_at              as delivered_at,
+       error_summary             as error_summary,
+       provider_message_id       as provider_message_id
+  from public.notification_history
+ where user_id = cast(:user_id as uuid)
+ order by scheduled_for desc, id desc
+ limit cast(:limit as integer)
+"""
+
+# A test send writes a final-status row directly (never 'pending'/'sending'), with a
+# deduplication key keyed on the timestamp so repeated test sends are never blocked by the
+# UNIQUE(user_id, deduplication_key) guard that protects real digests/alerts from duplicates.
+INSERT_TEST_SEND = """
+insert into public.notification_history
+       (user_id, notification_type, deduplication_key, subject, status, scheduled_for,
+        attempt_count, sent_at, provider_message_id, error_summary)
+values (cast(:user_id as uuid), 'test', :deduplication_key, :subject,
+        case when cast(:succeeded as boolean) then 'sent' else 'failed' end,
+        cast(:now as timestamptz), 1,
+        case when cast(:succeeded as boolean) then cast(:now as timestamptz) end,
+        :provider_message_id, :error_summary)
+returning id::text as id
+"""

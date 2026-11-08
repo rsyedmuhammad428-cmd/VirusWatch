@@ -103,3 +103,72 @@ class HttpxPoster:
         except ValueError:
             payload = {}
         return response.status_code, payload if isinstance(payload, dict) else {}
+
+
+class LoggingSender:
+    """The safe development-mode sender.
+
+    With no `redirect_to`, nothing is sent anywhere: the call is logged (recipient and subject
+    only -- never the HTML/text body, which could carry a real surveillance claim) and a
+    deterministic fake message id is returned, so callers that record `provider_message_id`
+    still have something stable to store. With `redirect_to`, the same message is actually sent
+    through `inner` (a real `ResendSender`) but to that one fixed address instead of the real
+    recipient, so a developer can see a rendered email without ever reaching a real user.
+    """
+
+    def __init__(self, *, inner: EmailSender | None = None, redirect_to: str | None = None) -> None:
+        self._inner = inner
+        self._redirect_to = redirect_to
+
+    async def send(self, message: OutboundEmail) -> str:
+        import logging
+
+        logger = logging.getLogger("app.notifications.dev_sender")
+        if self._redirect_to and self._inner is not None:
+            logger.info(
+                "dev email redirected", extra={"to": self._redirect_to, "subject": message.subject}
+            )
+            redirected = OutboundEmail(
+                to=self._redirect_to,
+                subject=f"[dev:{message.to}] {message.subject}",
+                html=message.html,
+                text=message.text,
+                unsubscribe_url=message.unsubscribe_url,
+            )
+            return await self._inner.send(redirected)
+        logger.info("dev email suppressed", extra={"to": message.to, "subject": message.subject})
+        return f"dev-{abs(hash((message.to, message.subject)))}"
+
+
+def choose_sender(
+    *,
+    api_key: str,
+    from_address: str,
+    environment: str,
+    domain_verified: bool,
+    mode: str = "auto",
+    redirect_to: str | None = None,
+) -> EmailSender:
+    """The single, fail-closed policy for picking a sender, used by both the CLI's `notify`
+    command and the `POST /api/v1/me/notifications/test` endpoint.
+
+    mode="auto" (the default): live delivery only when environment == "production" AND the
+    sending domain is confirmed verified; dev mode (suppressed, or redirected if `redirect_to`
+    is set) in every other case. mode="live" and mode="dev" are explicit operator overrides.
+    Raises ValueError if the chosen mode needs credentials that are not configured, so a
+    misconfigured deployment fails loudly instead of silently falling back to dev mode.
+    """
+    use_live = mode == "live" or (
+        mode == "auto" and environment == "production" and domain_verified
+    )
+    if use_live:
+        if not api_key or not from_address:
+            raise ValueError("RESEND_API_KEY and EMAIL_FROM must be set to send live email.")
+        return ResendSender(api_key, from_address, HttpxPoster())
+    if redirect_to:
+        if not api_key or not from_address:
+            raise ValueError("RESEND_API_KEY and EMAIL_FROM must be set to redirect dev email.")
+        return LoggingSender(
+            inner=ResendSender(api_key, from_address, HttpxPoster()), redirect_to=redirect_to
+        )
+    return LoggingSender()

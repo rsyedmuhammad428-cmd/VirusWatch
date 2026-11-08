@@ -4,9 +4,10 @@ AI-assisted infectious-disease **surveillance information** platform (Pakistan f
 It reports surveillance indicators and flags statistical anomalies. It does **not** diagnose people, measure
 airborne viruses, or confirm outbreaks because a number went up.
 
-> **Status: Phases 1–4 of 9.** Skeleton, schema, RLS, auth, WHO FluNet ingestion, the statistical analysis engine and the
-> surveillance API exist. **Everything has been tested on synthetic fixtures only; no real WHO download has been run, the
-> database contains zero real observations, and the HTTP layer has never been started** (see [Status](#status)). See [Status](#status) for exactly what is and is not verified.
+> **Status: Phases 1–7 of 9.** Skeleton, schema/RLS/auth, WHO FluNet ingestion, the statistical analysis engine, the
+> surveillance API, email scheduling, RAG + Gemini, and CDC FluView/NIH bulletin connectors exist. **Everything has been
+> tested against real supplied fixtures where fixtures exist, and with fakes elsewhere; the HTTP/FastAPI layer has never
+> been started in this sandbox** (see [Status](#status)). See [Status](#status) for exactly what is and is not verified.
 
 ## File structure
 
@@ -92,10 +93,14 @@ and optionally Docker. Python packages (`requirements.txt`):
 | sqlalchemy[asyncio], asyncpg | async PostgreSQL access (Core, no ORM models) |
 | PyJWT[crypto] | verifying Supabase access tokens (includes `cryptography`) |
 | structlog | structured JSON logs |
-| httpx | HTTP client for upcoming source connectors, Gemini, Resend |
-| pandas | data processing for upcoming ingestion/analysis |
+| httpx | HTTP client for source connectors, Gemini, Resend |
+| pandas | data processing for ingestion/analysis |
+| google-genai | Gemini LLM + embeddings provider (Phase 5) |
+| langchain-core | `Embeddings`/`VectorStoreRetriever`-compatible adapters over the RAG pipeline (Phase 5, promprt2.txt) |
+| langgraph | optional `StateGraph` wrapper around the AI workflow (Phase 5, promprt2.txt) |
 
-Dev only (`requirements-dev.txt`): pytest, ruff. Later phases will add PDF/RAG packages (e.g. pdfplumber/PyMuPDF).
+Dev only (`requirements-dev.txt`): pytest, ruff. `pdftotext` (poppler-utils) is required at runtime for PDF
+document extraction (`app/rag/extract.py`); not a pip package.
 
 ## Quick start
 
@@ -253,22 +258,36 @@ Verified means "actually executed in the build sandbox"; the sandbox had no PyPI
 | Routers (`/surveillance/*`, `/sources/*`) | **Written, never run**: FastAPI could not be installed. A static test proves each router passes exactly the parameters its SQL declares. |
 | `SqlIngestionRepository`, `SqlAnalysisRepository`, `Database`, httpx fetcher | **Written, never run** (sqlalchemy/asyncpg/httpx not installable); the SQL they run is tested |
 | Phase 1 FastAPI app and its tests | **Written, never run**. Run `pytest -q` first on a machine with the dependencies. |
-| Whole suite in the sandbox | 463 tests pass; the three Phase 1 files needing `fastapi` / `pydantic_settings` could not be collected and were excluded; `ruff check` and `ruff format --check` clean |
+| Whole suite in the sandbox | 872 passed, 4 skipped (pgvector-only cases, CI covers them) as of the Phase 8 report date; `test_auth.py`/`test_health_and_errors.py` (need `fastapi`/`structlog`) and `test_config.py` (needs `pydantic-settings`) could not be collected and were excluded; `ruff check` and `ruff format --check` clean |
 | Real FluNet download | **Not verified** (who.int unreachable). The parser rejects a header that differs from the WHO dictionary. |
 | Detection accuracy | **Not evaluated**: no real history ingested; thresholds are conventional, untuned |
 | WHO data licence | **Unverified**; source seeded disabled, export flag unset |
 | pgvector column / `match_document_chunks()` | **Written, not executed** locally; CI covers it |
 | Supabase project, Gemini, Resend | Not connected: no credentials |
-| Dataset provenance/validation (`app/datasets/`), NIH Table-1 parser | **Tested** on the real supplied files (see `docs/DATA_EXPANSION_REPORT.md`); not yet wired to a loader that writes `observations` |
-| Email scheduling (`app/notifications/`: schedule, planner, dispatcher, Resend sender, Svix webhook) | **Tested** with fakes and, for the SQL/migration, on real PostgreSQL 16; never run against a live Resend account |
-| Phase 5 (RAG + Gemini), Phase 7 NIH/CDC live connectors, Phase 8-9 | Not started |
+| Dataset provenance/validation (`app/datasets/`), NIH Table-1 parser | **Tested** on the real supplied files (see `docs/DATA_EXPANSION_REPORT.md`); now wired into `app.ingestion.connectors.nih_bulletin` (Phase 7) — see below |
+| Email scheduling (`app/notifications/`: schedule, planner, dispatcher, Resend sender, Svix webhook, fail-closed `choose_sender` policy) | **Tested** with fakes and, for the SQL/migration, on real PostgreSQL 16; never run against a live Resend account. See `docs/PHASE6_REPORT.md` and `docs/SCHEDULING.md`. |
+| `GET/PUT /api/v1/me/notifications*`, `POST /api/v1/me/notifications/test` | **Written, never run** (FastAPI not installable here); repository methods (`get_preferences`, `history`, `record_test_send`) tested against real PostgreSQL 16; static SQL-contract test confirms correct parameter wiring |
+| RAG pipeline (`app/rag/`: catalog, extraction, chunking, pipeline, SQL repository) | **Tested** with fakes; PDF extraction (`pdftotext -layout`) tested against a real NIH bulletin PDF fixture; HTML extraction tested against synthetic HTML built around real WebFetch results (see `docs/PHASE5_REPORT.md`); `match_document_chunks()` retrieval SQL never run against a live pgvector database here (CI only, same as Phase 4) |
+| AI workflow (`app/ai/`: workflow steps A-H, citation verification, Gemini provider, LangChain/LangGraph adapters) | **Tested** with fakes; never called the real Gemini API (no key, package not installed) — `AskService` degrades to an "insufficient evidence" answer when Gemini is unconfigured, which is itself the tested, exercised path |
+| `POST /api/v1/ai/ask` | **Written, never run** (FastAPI not installable here); static test proves it passes exactly the parameters the AI service expects |
+| CDC FluView connector (`app/ingestion/connectors/cdc_fluview*.py`), `app/ingestion/mmwr.py` | **Tested** end to end against the real ILINet.csv/ICL_NREVSS_*.csv you supplied; `fetch()` reads local files by design (CDC's real download endpoint is POST-only with an unconfirmed request schema — see `docs/PHASE7_REPORT.md` §2), never called live |
+| NIH bulletin connector (`app/ingestion/connectors/nih_bulletin.py`) | **Tested** end to end against your real Week 26, 2026 bulletin PDF; province-level geography preserved in `metadata` only (schema has no sub-national field yet) |
+| CDC NWSS (wastewater) | **Not implemented.** Real public Socrata endpoint identified and documented (`docs/source_notes_cdc_nwss.md`); no column schema could be verified from this sandbox, so no parser was written |
+| Cross-source comparability guard (`tests/surveillance/test_cross_source_comparability.py`) | **Tested** against real parsed CDC/NIH data: new indicator slugs are excluded from cross-country comparison by default, CDC's two NREVSS lab types can't be pooled, NIH counts can't be compared as a rate, and each connector's country scoping is proven, not assumed |
+| 8 newly attached datasets (Kaggle/OpenDengue dengue, Malaria Atlas Project, Project Tycho, a third-party KP district-week compilation, a research paper) | **Validated and cataloged** (`data/provenance/manifest.json`, `docs/DATASET_AUDIT_REPORT.md` §9) — licence, data class, coverage, known issues; **not ingested** as observations this phase |
+| Phase 8 | Done: intelligent-agent enhancement (currently-flagged signal → disease-specific, cited protection guidance), malaria + measles RAG documents, endpoint docs + samples, `docs/FRONTEND_INTEGRATION.md`, route-auth-vs-docs test (`docs/PHASE8_REPORT.md`) |
+| Phase 9 | Not started (evaluation, exports, deployment) |
 
 ## Roadmap
 
 3 WHO FluNet (done) → 4 analysis engine + surveillance APIs (done) → data expansion + email
-scheduling (done, see `docs/DATA_EXPANSION_REPORT.md`) → 5 RAG + Gemini →
-6 Resend digests/alerts (scheduling/sending built; live account not connected) →
-7 NIH + CDC live connectors (parser built; live ingestion not wired) →
+scheduling (done, see `docs/DATA_EXPANSION_REPORT.md`) → 5 RAG + Gemini (built and tested with
+fakes; see `docs/PHASE5_REPORT.md` — never run against live Gemini/pgvector) →
+6 Resend digests/alerts (done, see `docs/PHASE6_REPORT.md` and `docs/SCHEDULING.md`; live account
+not connected) →
+7 NIH + CDC additional data sources (done, see `docs/PHASE7_REPORT.md`; CDC FluView and NIH
+bulletin connectors tested end to end against real files, CDC NWSS documented as a real source with
+no connector yet) →
 8 frontend integration docs → 9 evaluation, exports, deployment.
 
 The master spec (`Prompt.txt`) defines **9 phases** in total: 1 skeleton, 2 schema/RLS/auth,

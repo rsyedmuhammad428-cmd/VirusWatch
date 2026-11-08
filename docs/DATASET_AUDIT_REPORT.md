@@ -102,3 +102,42 @@ Malaria in Sindh (Malaria Journal 2025); dengue clinical characteristics in Kara
 - Missing NIH bulletins (2026 weeks 1–32, 38) and any WHO/other measles, COVID, dengue, malaria datasets – can you supply them, or should the first release cover only the weeks present?
 - Licence stance: block public display of FluNet statistics until terms are verified, or display with attribution?
 - Should NIH PDF tables be auto-extracted (needs per-week review) or hand-validated into CSV once for the first release?
+
+## 9. Phase 7 addendum — new batch supplied 2026-11-04/06
+
+Eight new records were added to `data/provenance/manifest.json` (now 42 total; checksums computed
+from the files as supplied, never typed in — see `scripts/build_manifest_phase7_addendum.py`).
+Each record's own `notes` field carries the full validation finding; summarized here:
+
+| dataset_id | Data class | Licence | Headline finding |
+|---|---|---|---|
+| `kaggle_dengue_pakistan_2016_2020` | surveillance | CC BY-SA 4.0 (open) | Real, usable. ShareAlike: anything built from it inherits the same licence. |
+| `opendengue_national_extract_v1_3` | surveillance | unverified | `case_definition_standardised` (Suspected/Confirmed/Total) and `T_res` (Week/Month/Year) both vary **within** the same country's rows — never pool across either without filtering to one value first. |
+| `opendengue_emro_pakistan_filtered` | surveillance | unverified | Same source as above, Pakistan-only, extends it with 2023–2025 monthly rows. Overlapping years must not be summed with the national extract. |
+| `malaria_atlas_project_pakistan_national_unit` | **health_context**, not surveillance | CC BY 3.0 (open) | These are MAP's *modelled* incidence/prevalence estimates, not reported case counts — classified health_context specifically so the analysis engine never treats them as a surveillance series. |
+| `kp_idsr_district_week_compilation` | **compilation** | self-declared CC BY 4.0, **unverified** | See callout below — this one needs your decision before any further work touches it. |
+| `tycho_pk_covid19_dataset_descriptor` | surveillance (metadata only) | CC BY 4.0 (verified, read from the file's own DataCite record) | This is the dataset's *citation record*, not the CSV. Downloading the real data needs a free Project Tycho account + API key, which this project does not have. |
+| `tycho_api_reference` | compilation (docs) | none stated | Real, registration-gated REST API, documented for a future phase; no key available, so no connector was built against it. |
+| `malaria_sindh_research_paper` | research | unverified | Cite/index only, per the existing research rule — never a case-count source. |
+
+**Needs your decision: `kp_idsr_district_week_compilation`.** This is an unusually rich, carefully
+documented panel — 59,824 district-week-condition rows for Khyber Pakhtunkhwa, with a reproducible
+build script, a district-relabeling crosswalk, and a candid data-quality-issues list. But its own
+README states the source table was "transcribed from each bulletin PDF using an AI-assisted
+document-reading tool," asks readers to "cite the accompanying Data in Brief article," and names no
+authors, journal, or DOI anywhere in the files supplied. A web search for that article by its
+stated title found nothing — only the underlying NIH bulletin PDFs themselves (a source this
+project already has its own independent extractor for, `app.datasets.nih_table`). This project's
+rule against fabricating or unverifiably claiming integrations cuts the same way for a dataset
+someone else fabricated or mis-cited: it is marked `compilation` / `unverified` (so the catalog's
+own permission rules already restrict it to internal validation only), and **it has not been
+ingested or persisted as observations.** If you can identify the actual authors or a working DOI
+for the "Data in Brief article," or if this compilation is your own work and you can confirm that
+directly, say so and it can be reclassified and integrated; otherwise it stays as reference
+material only.
+
+No connector was built this phase for any of these eight — Phase 7's connector work (CDC FluView,
+NIH bulletin PDFs, CDC NWSS assessment) is reported separately in `docs/PHASE7_REPORT.md`. Building
+ingestion for the dengue/malaria sources above (indicator definitions, a dengue/malaria section in
+`app.analysis`, geography rows for sub-national KP districts) is sized like its own phase and is
+not represented here as done.

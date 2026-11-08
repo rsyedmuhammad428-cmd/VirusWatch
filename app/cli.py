@@ -50,7 +50,33 @@ def build_parser() -> argparse.ArgumentParser:
     ingest.add_argument("--raw-dir", type=Path, help="Archive the downloaded file here")
     ingest.add_argument("--json", action="store_true", help="Machine-readable summary")
 
-    sub.add_parser("notify", help="Run one email cycle: queue due digests/alerts, send, record")
+    notify = sub.add_parser(
+        "notify", help="Run one email cycle: queue due digests/alerts, send, record"
+    )
+    notify.add_argument(
+        "--mode",
+        choices=("auto", "live", "dev"),
+        default="auto",
+        help="auto (default): live only in production with a verified domain; "
+        "live: force real sends; dev: never contact real users",
+    )
+    notify.add_argument(
+        "--redirect-to",
+        help="In dev mode, send real emails here instead of real users (needs --mode dev)",
+    )
+
+    ingest_docs = sub.add_parser(
+        "ingest-documents", help="RAG ingestion: discover, extract, chunk, embed, store"
+    )
+    ingest_docs.add_argument(
+        "--source",
+        default="all",
+        help="Catalog filter: 'all', or a substring of a slug/publisher (e.g. who, nih, cdc)",
+    )
+    ingest_docs.add_argument(
+        "--dry-run", action="store_true", help="Fetch and chunk, write nothing"
+    )
+    ingest_docs.add_argument("--json", action="store_true", help="Machine-readable summary")
 
     analyze = sub.add_parser("analyze", help="Run the statistical analysis over stored series")
     analyze.add_argument(
@@ -215,7 +241,23 @@ async def _analyze(args: argparse.Namespace) -> int:
     return EXIT_OK
 
 
-async def _notify() -> int:
+def _choose_sender(settings, mode: str, redirect_to: str | None):
+    """Thin wrapper over app.notifications.sender.choose_sender (the shared fail-closed policy;
+    also used by POST /api/v1/me/notifications/test) that reads the relevant fields off Settings.
+    """
+    from app.notifications.sender import choose_sender
+
+    return choose_sender(
+        api_key=settings.resend_api_key.get_secret_value(),
+        from_address=settings.email_from,
+        environment=settings.environment,
+        domain_verified=settings.resend_domain_verified,
+        mode=mode,
+        redirect_to=redirect_to,
+    )
+
+
+async def _notify(args: argparse.Namespace) -> int:
     from datetime import UTC, datetime
 
     from app.config import get_settings
@@ -223,14 +265,14 @@ async def _notify() -> int:
     from app.db import Database
     from app.notifications.dispatcher import DispatchConfig, run_cycle
     from app.notifications.planner import DEFAULT_ACCEPTED_REVIEWS
-    from app.notifications.sender import HttpxPoster, ResendSender
     from app.notifications.sql_repository import SqlNotificationRepository
 
     settings = get_settings()
     configure_logging(settings.log_level, json_logs=settings.environment != "development")
-    api_key = settings.resend_api_key.get_secret_value()
-    if not api_key or not settings.email_from:
-        print("RESEND_API_KEY and EMAIL_FROM must be set.", file=sys.stderr)
+    try:
+        sender = _choose_sender(settings, args.mode, args.redirect_to)
+    except ValueError as exc:
+        print(f"error: {exc}", file=sys.stderr)
         return EXIT_USAGE
     reviews = (
         DEFAULT_ACCEPTED_REVIEWS | {"auto"}
@@ -241,7 +283,7 @@ async def _notify() -> int:
     try:
         summary = await run_cycle(
             SqlNotificationRepository(db),
-            ResendSender(api_key, settings.email_from, HttpxPoster()),
+            sender,
             now=datetime.now(UTC),
             config=DispatchConfig(
                 batch_size=settings.notification_batch_size,
@@ -253,6 +295,117 @@ async def _notify() -> int:
         await db.dispose()
     print(json.dumps(asdict(summary), indent=2))
     return EXIT_OK
+
+
+async def _ingest_documents(args: argparse.Namespace) -> int:
+    from datetime import UTC, datetime
+
+    from app.config import get_settings
+    from app.core.logging_config import configure_logging
+    from app.db import Database
+    from app.rag.catalog import sources_for
+    from app.rag.downloader import HttpxDownloader
+    from app.rag.models import ChunkingConfig
+    from app.rag.pipeline import DefaultExtractor, ingest_sources
+    from app.rag.sql_repository import SqlRagRepository
+
+    settings = get_settings()
+    configure_logging(settings.log_level, json_logs=settings.environment != "development")
+
+    sources = list(sources_for(args.source))
+    if not sources:
+        print(f"error: no catalog entry matches --source {args.source!r}", file=sys.stderr)
+        return EXIT_USAGE
+
+    downloader = HttpxDownloader(user_agent=settings.ingestion_user_agent)
+    extractor = DefaultExtractor()
+
+    api_key = settings.gemini_api_key.get_secret_value()
+    if not api_key or not settings.gemini_embedding_model:
+        print(
+            "error: GEMINI_API_KEY / GEMINI_EMBEDDING_MODEL are not configured; cannot embed "
+            "chunks. Set them (see docs/PHASE5_REPORT.md) and re-run.",
+            file=sys.stderr,
+        )
+        return EXIT_USAGE
+    from app.ai.gemini import GeminiEmbeddingProvider
+
+    embedder = GeminiEmbeddingProvider(
+        api_key, settings.gemini_embedding_model, settings.embedding_dimensions
+    )
+
+    db_url = _require_db_url(settings)
+    db = Database(db_url, pool_size=2)
+    try:
+        repository = _DryRunRagRepository() if args.dry_run else SqlRagRepository(db)
+        report = await ingest_sources(
+            sources,
+            downloader=downloader,
+            extractor=extractor,
+            embedder=embedder,
+            repository=repository,
+            now=datetime.now(UTC),
+            chunking_config=ChunkingConfig(
+                target_chars=settings.rag_chunk_target_chars,
+                overlap_chars=settings.rag_chunk_overlap_chars,
+            ),
+        )
+    finally:
+        await db.dispose()
+
+    if args.json:
+        print(
+            json.dumps(
+                {
+                    "dry_run": args.dry_run,
+                    "succeeded": report.succeeded,
+                    "failed": report.failed,
+                    "chunks_written": report.chunks_written,
+                    "results": [
+                        {
+                            "slug": r.slug,
+                            "status": r.outcome.status if r.outcome else None,
+                            "chunks_written": r.outcome.chunks_written if r.outcome else 0,
+                            "error": r.error,
+                        }
+                        for r in report.results
+                    ],
+                },
+                indent=2,
+            )
+        )
+    else:
+        print(f"sources       {len(sources)} matched --source {args.source!r}")
+        print(f"succeeded     {report.succeeded}")
+        print(f"failed        {report.failed}")
+        dry_run_note = "  (DRY RUN: nothing was saved)" if args.dry_run else ""
+        print(f"chunks        {report.chunks_written}{dry_run_note}")
+        for r in report.results:
+            if r.error:
+                print(f"  {r.slug:35} ERROR: {r.error}")
+            else:
+                print(f"  {r.slug:35} {r.outcome.status} ({r.outcome.chunks_written} chunks)")
+    return EXIT_OK if report.failed == 0 else EXIT_PARTIAL
+
+
+class _DryRunRagRepository:
+    """Used only by `ingest-documents --dry-run`: extraction/chunking/embedding all run for
+    real, but nothing is written. Distinct from `ingest --dry-run`, which runs the real SQL
+    inside a rolled-back transaction -- RagRepository's upsert spans document + N chunk inserts,
+    and skipping the writes entirely is simpler and equally honest for a dry run.
+    """
+
+    async def find_current_version(self, source_url: str):
+        return None
+
+    async def upsert_document(self, upsert, *, supersedes):
+        from uuid import uuid4
+
+        from app.rag.models import IngestOutcome
+
+        return IngestOutcome(
+            document_id=uuid4(), status="inserted", chunks_written=len(upsert.chunks)
+        )
 
 
 async def _sources() -> int:
@@ -291,7 +444,9 @@ def main(argv: Sequence[str] | None = None) -> int:
         if args.command == "analyze":
             return asyncio.run(_analyze(args))
         if args.command == "notify":
-            return asyncio.run(_notify())
+            return asyncio.run(_notify(args))
+        if args.command == "ingest-documents":
+            return asyncio.run(_ingest_documents(args))
         return asyncio.run(_sources())
     except (IngestionError, AnalysisPersistenceError) as exc:
         print(f"error: {exc}", file=sys.stderr)

@@ -12,7 +12,7 @@ from app.db import Database
 from app.notifications import sql
 from app.notifications.digest import DigestItem
 from app.notifications.planner import AlertCandidate, PlannedEmail, Preference
-from app.notifications.ports import ClaimedEmail
+from app.notifications.ports import ClaimedEmail, HistoryEntry
 from app.notifications.status import next_status
 from app.notifications.webhook import ResendEvent
 
@@ -367,3 +367,83 @@ class SqlNotificationRepository:
         async with self._db.session() as conn:
             row = (await conn.execute(text(sql.UNSUBSCRIBE), {"token": token})).first()
         return row is not None
+
+    async def get_preferences(self, user_id: str) -> Preference | None:
+        async with self._db.session(read_only=True) as conn:
+            row = (
+                (await conn.execute(text(sql.GET_PREFERENCES), {"user_id": user_id}))
+                .mappings()
+                .first()
+            )
+        if row is None:
+            return None
+        return Preference(
+            user_id=row["user_id"],
+            email=row["email"],
+            enabled=row["enabled"],
+            digest_enabled=row["digest_enabled"],
+            alerts_enabled=row["alerts_enabled"],
+            frequency=row["frequency"],
+            timezone=row["timezone"],
+            local_time=_hhmm(row["local_time"]),
+            weekly_day=int(row["weekly_day"]),
+            monthly_day=int(row["monthly_day"]),
+            minimum_alert_severity=row["minimum_alert_severity"],
+            consent_given_at=_dt(row["consent_given_at"]),
+            email_verified_at=_dt(row["email_verified_at"]),
+            last_digest_at=_dt(row["last_digest_at"]),
+            selected_diseases=_json_list(row["selected_diseases"]),
+            preferred_geography_id=row["preferred_geography_id"],
+            unsubscribe_token=row["unsubscribe_token"],
+        )
+
+    async def history(self, user_id: str, limit: int = 20) -> list[HistoryEntry]:
+        async with self._db.session(read_only=True) as conn:
+            rows = (
+                (await conn.execute(text(sql.HISTORY), {"user_id": user_id, "limit": limit}))
+                .mappings()
+                .all()
+            )
+        return [
+            HistoryEntry(
+                id=r["id"],
+                notification_type=r["notification_type"],
+                subject=r["subject"],
+                status=r["status"],
+                attempt_count=int(r["attempt_count"]),
+                scheduled_for=_dt(r["scheduled_for"]),
+                sent_at=_dt(r["sent_at"]),
+                delivered_at=_dt(r["delivered_at"]),
+                error_summary=r["error_summary"],
+                provider_message_id=r["provider_message_id"],
+            )
+            for r in rows
+        ]
+
+    async def record_test_send(
+        self,
+        *,
+        user_id: str,
+        subject: str,
+        succeeded: bool,
+        provider_message_id: str | None,
+        error_summary: str | None,
+        now: datetime,
+    ) -> str:
+        key = f"test:{user_id}:{now.isoformat()}"
+        async with self._db.session() as conn:
+            row = (
+                await conn.execute(
+                    text(sql.INSERT_TEST_SEND),
+                    {
+                        "user_id": user_id,
+                        "deduplication_key": key,
+                        "subject": subject,
+                        "succeeded": succeeded,
+                        "now": _iso(now),
+                        "provider_message_id": provider_message_id,
+                        "error_summary": error_summary,
+                    },
+                )
+            ).first()
+        return row.id

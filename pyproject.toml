@@ -18,6 +18,9 @@ dependencies = [
   "pandas>=2.2",
   "structlog>=24.1",
   "PyJWT[crypto]>=2.8",
+  "google-genai>=0.3",
+  "langchain-core>=0.3",
+  "langgraph>=0.2",
 ]
 
 [project.optional-dependencies]

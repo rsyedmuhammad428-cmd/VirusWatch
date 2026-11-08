@@ -95,13 +95,17 @@ class TestFluNetConnector:
 
 class TestRegistry:
     def test_only_verified_sources_are_registered(self):
-        assert available_sources() == ["who_flunet"]
+        # cdc_fluview and pk_nih_weekly_bulletin were added in Phase 7 (both ingest from local,
+        # human-downloaded files -- see their modules' docstrings for why). cdc_nwss remains
+        # unregistered -- see docs/source_notes_cdc_nwss.md: a real, public dataset was identified
+        # but its column schema was never confirmed from this sandbox.
+        assert available_sources() == ["cdc_fluview", "pk_nih_weekly_bulletin", "who_flunet"]
 
     def test_get_connector_passes_options_through(self):
         c = get_connector("who_flunet", max_bytes=5, timeout_seconds=7)
         assert isinstance(c, FluNetConnector) and c._max_bytes == 5 and c._timeout == 7
 
-    @pytest.mark.parametrize("slug", ["cdc_fluview", "pk_nih_weekly_bulletin", "nonsense"])
+    @pytest.mark.parametrize("slug", ["cdc_nwss", "nonsense"])
     def test_unimplemented_sources_are_refused_with_guidance(self, slug):
         with pytest.raises(IngestionError, match="who_flunet"):
             get_connector(slug)

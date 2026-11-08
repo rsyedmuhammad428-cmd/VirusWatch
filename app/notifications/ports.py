@@ -12,6 +12,20 @@ from app.notifications.webhook import ResendEvent
 
 
 @dataclass(frozen=True)
+class HistoryEntry:
+    id: str
+    notification_type: str  # 'digest' | 'alert' | 'test'
+    subject: str
+    status: str
+    attempt_count: int
+    scheduled_for: datetime
+    sent_at: datetime | None
+    delivered_at: datetime | None
+    error_summary: str | None
+    provider_message_id: str | None
+
+
+@dataclass(frozen=True)
 class ClaimedEmail:
     id: str
     user_id: str
