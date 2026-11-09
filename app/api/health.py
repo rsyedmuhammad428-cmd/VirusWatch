@@ -12,7 +12,7 @@ router = APIRouter(tags=["health"])
 
 @router.get("/health", summary="Liveness probe (no dependencies checked)")
 async def health() -> dict[str, str]:
-    return {"status": "ok", "version": __version__}
+    return {"status": "healthy", "version": __version__}
 
 
 @router.get("/ready", summary="Readiness probe (database + schema)")

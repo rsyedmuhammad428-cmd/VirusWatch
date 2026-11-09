@@ -11,6 +11,7 @@ from __future__ import annotations
 from datetime import UTC, datetime
 from typing import Any
 
+from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncConnection
 
 from app.ai.gemini import GeminiEmbeddingProvider, GeminiLLMProvider, LLMError
@@ -22,11 +23,14 @@ from app.ai.models import (
     WorkflowAnswer,
 )
 from app.ai.workflow import answer_question
-from app.api.v1.common import fetch
 from app.config import Settings
 from app.rag.sql_repository import SqlRagRepository
 from app.surveillance import queries
 from app.surveillance import service as surveillance_service
+
+async def _fetch(conn: AsyncConnection, statement: str, params: dict[str, Any]) -> list[Any]:
+    return list((await conn.execute(text(statement), params)).mappings().all())
+
 
 # Not a real external source: the engine-computed "currently flagged" screening
 # (app.surveillance.service.build_alerts) has no single upstream source_slug of its own, since
@@ -46,7 +50,7 @@ class _DbStructuredDataSource:
     async def fetch_observations(
         self, *, country_code: str | None, disease: str | None, limit: int
     ) -> list[StructuredObservation]:
-        rows = await fetch(
+        rows = await _fetch(
             self._conn,
             queries.OBSERVATIONS,
             {
@@ -69,7 +73,7 @@ class _DbStructuredDataSource:
         the public /surveillance/alerts endpoint returns -- so "what's currently most prevalent"
         is never answered from a notion of "trending" invented here.
         """
-        rows = await fetch(
+        rows = await _fetch(
             self._conn,
             queries.LATEST_ANALYSES,
             {"country": country_code, "disease": None, "indicator": None, "stream": None},
