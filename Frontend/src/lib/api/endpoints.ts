@@ -54,7 +54,7 @@ export const endpoints = {
   notifications: "/api/notifications",
   notificationPreferences: "/api/notifications/preferences",
   sources: "/api/sources",
-  aiAsk: "/api/ai/ask",
+  aiAsk: "/api/v1/ai/ask",
   /**
    * Server-sent events (SSE) version of aiAsk for live streaming. The
    * backend streams JSON events of type: step (tool activity such as
@@ -108,6 +108,30 @@ export const api = {
 
   getSources: (signal?: AbortSignal) => apiRequest<DataSource[]>(endpoints.sources, { signal }),
 
-  askAi: (question: string, signal?: AbortSignal) =>
-    apiRequest<AiAnswer>(endpoints.aiAsk, { method: "POST", body: { question }, signal }),
+  askAi: async (question: string, signal?: AbortSignal): Promise<AiAnswer> => {
+    const response = await apiRequest<{
+      answer: string;
+      citations: Array<{
+        marker: string;
+        kind: string;
+        label: string;
+        source_url: string | null;
+        retrieved_at: string | null;
+      }>;
+      limitations: string[];
+    }>(endpoints.aiAsk, { method: "POST", body: { question }, signal });
+
+    return {
+      answer: response.answer,
+      evidence: {
+        citations: response.citations.map((citation) => ({
+          title: citation.label,
+          url: citation.source_url,
+          data_freshness: citation.retrieved_at,
+        })),
+        limitations: response.limitations,
+      },
+    };
+  },
 };
+
