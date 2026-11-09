@@ -102,18 +102,32 @@ class GeminiEmbeddingProvider:
             import asyncio
 
             response = await asyncio.to_thread(
-                client.models.embed_content, model=self._model, contents=texts
+                client.models.embed_content,
+                model=self._model,
+                contents=texts,
+                config={"output_dimensionality": self._dimensions},
             )
         except Exception as exc:  # noqa: BLE001
             raise LLMError(f"Gemini embedding request failed: {exc}") from exc
         embeddings = getattr(response, "embeddings", None)
         if not embeddings or len(embeddings) != len(texts):
             raise LLMError("Gemini embedding response did not match the requested batch size")
-        vectors = [tuple(e.values) for e in embeddings]
+        vectors = [tuple(float(value) for value in e.values) for e in embeddings]
         for v in vectors:
             if len(v) != self._dimensions:
                 raise LLMError(
                     f"Gemini returned {len(v)}-dimensional embeddings, expected "
                     f"{self._dimensions} (app.config.Settings.embedding_dimensions)"
                 )
+        # gemini-embedding-001 requires client-side normalization when requesting
+        # fewer than its native 3072 dimensions.
+        if self._model.removeprefix("models/") == "gemini-embedding-001":
+            normalized = []
+            for vector in vectors:
+                norm = sum(value * value for value in vector) ** 0.5
+                if not norm:
+                    raise LLMError("Gemini returned a zero-length embedding vector")
+                normalized.append(tuple(value / norm for value in vector))
+            vectors = normalized
         return vectors
+
