@@ -60,6 +60,11 @@ _CURRENT_THREAT_HINTS = re.compile(
     r"how (do|can) i (prevent|avoid) (getting|catching)|keep (myself|my family) safe)\b",
     re.IGNORECASE,
 )
+_GREETING = re.compile(
+    r"^(?:hi|hello|hey|good morning|good afternoon|good evening|how are you|how's it going)"
+    r"[.!?,\s]*$",
+    re.IGNORECASE,
+)
 
 
 # --- A/B: interpret the question --------------------------------------------------------------
@@ -287,9 +292,25 @@ async def answer_question(
     retriever: DocumentRetriever,
     llm: LLMProvider | None,
 ) -> WorkflowAnswer:
-    """Steps A-H in one call. `llm=None` is a valid, fully-testable configuration (no API key
-    configured yet) that always returns the insufficient-evidence answer, never a fabricated one.
+    """Steps A-H in one call. `llm=None` is a valid configuration (no API key configured yet)
+    that returns the insufficient-evidence answer for factual questions, never a fabricated one.
     """
+    # Greetings are ordinary conversation, not surveillance claims. Handle these without
+    # retrieval so an empty surveillance database does not make the assistant ignore a greeting.
+    if _GREETING.fullmatch(request.text.strip()):
+        return WorkflowAnswer(
+            answer_text=(
+                "Hi! I can help with infectious-disease surveillance. Ask about a disease, "
+                "country, and time period, and I’ll share what the available evidence supports."
+            ),
+            citations=(),
+            reporting_periods=(),
+            last_update_timestamps=(),
+            limitations=(),
+            intent="guidance",
+            insufficient_evidence=False,
+        )
+
     intent = classify_intent(request.text)  # A, B
     bundle = await build_evidence_bundle(  # C, D (E is a no-op: no new arithmetic is ever done)
         request,
@@ -337,3 +358,4 @@ async def answer_question(
         insufficient_evidence=False,
         model_identifier=draft.model_identifier,
     )
+
